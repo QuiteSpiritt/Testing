@@ -1,0 +1,87 @@
+using CalcClassBr;
+namespace UnitTestProject1
+{
+	[TestClass]
+	public class UnitTest1
+	{
+
+		[TestMethod]
+		public void TestAdd()
+		{
+			//AAA
+			//Arange
+
+			long a = 2; long b = 3;
+
+			long espected = 5;
+
+			//actual 
+
+			long actual = CalcClass.Add(a, b);
+
+			//assert
+			Assert.AreEqual(espected, actual);
+
+		}
+		[TestMethod]
+		[ExpectedException(typeof(ArgumentOutOfRangeException))]
+		public void TestAdd1Exception()
+		{
+			// Arrange
+			long a = (long)int.MaxValue + 1;
+			long b = int.MinValue;
+			// Act
+			long actual = checked(CalcClass.Add(a, b));
+		}
+		[TestMethod]
+		[ExpectedException(typeof(ArgumentOutOfRangeException))]
+		public void TestAdd2Exception()
+		{
+			// Arrange
+			long a = int.MaxValue;
+			long b = (long)int.MinValue - 1;
+			// Act
+			long actual = checked(CalcClass.Add(a, b));
+		}
+		[TestMethod]
+		[ExpectedException(typeof(ArgumentOutOfRangeException))]
+		public void TestAddOver1Exception()
+		{
+			// Arrange
+			long a = int.MaxValue;
+			long b = 1;
+
+			// Act
+			CalcClass.Add(a, b);
+		}
+		[TestMethod]
+		[ExpectedException(typeof(ArgumentOutOfRangeException))]
+		public void TestAddOver2Exception()
+		{
+			// Arrange
+			long a = int.MinValue;
+			long b = -1;
+
+			// Act
+			CalcClass.Add(a, b);
+		}
+		//E:\University\Тестування
+
+
+
+		public TestContext TestContext { get; set; }
+
+		[DataSource("System.Data.SqlClient", @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=E:\University\Тестування\CalculatorArrayDB.mdf;Integrated Security=True;Connect Timeout=30", "Data1", DataAccessMethod.Sequential)]
+		[TestMethod]
+		public void TestModBD()
+		{
+			long a = (long)TestContext.DataRow["a"];
+			long b = (long)TestContext.DataRow["b"];
+			long expected = (long)TestContext.DataRow["r"];
+			long actual;
+			actual = CalcClass.Add(a, b);
+			Assert.AreEqual(expected, actual);
+
+		}
+	}
+}
