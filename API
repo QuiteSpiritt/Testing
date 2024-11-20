@@ -1,0 +1,216 @@
+1)	Сценарії для завдань :
+•	.Для ресурсу http://restful-booker.herokuapp.com/ виконати тестування API операцій типу CRUD. 
+Feature: Booking CRUD Operations with Authentication for PUT and DELETE
+
+  Scenario: Create a new booking
+    Given I have a valid booking payload
+    When I send a POST request to "/booking"
+    Then the response status should be 200
+    And the response should contain the booking ID
+
+  Scenario: Retrieve a booking by ID
+    When I send a GET request to "/booking/{id}"
+    Then the response status should be 200
+    And the response should contain booking details
+
+  Scenario: Update a booking by ID
+    Given I am authorized
+    And I have a valid updated booking payload
+    When I send a PUT request to "/booking/{id}"
+    Then the response status should be 200
+    And the response should contain updated booking details
+
+  Scenario: Delete a booking by ID
+    Given I am authorized
+    When I send a DELETE request to "/booking/{id}"
+    Then the response status should be 201
+    And the booking should no longer exist
+
+•	Для сайту з фото котиків :
+Feature: Test API for CATS
+
+  Scenario: Get a random cat image and verify cat existence by ID
+    Given I have access to the Cataas API at "https://cataas.com/"
+    When I request a random cat image
+    Then the response should be successful
+
+2)	Покрокове тестування операцій post, put, get, delete :
+using Newtonsoft.Json;
+using RestSharp;
+using System;
+using TechTalk.SpecFlow;
+
+namespace testApi.StepDefinitions
+{
+	[Binding]
+	public class BookingSteps
+	{
+		private RestClient client = new RestClient("https://restful-booker.herokuapp.com");
+		private RestRequest request;
+		private IRestResponse response;
+		private string authToken= "YWRtaW46cGFzc3dvcmQxMjM"; 
+		private int bookingId;
+		private int getBookingId = 2101;
+		private int updateBookingId = 1848;
+		private int deleteBookingId = 106;
+
+		[Given(@"I have a valid booking payload")]
+		public void GivenIHaveAValidBookingPayload()
+		{
+			request = new RestRequest("/booking", Method.POST);
+			request.AddJsonBody(new
+			{
+				firstname = "John",
+				lastname = "Doe",
+				totalprice = 100,
+				depositpaid = true,
+				bookingdates = new
+				{
+					checkin = "2023-01-01",
+					checkout = "2023-01-05"
+				},
+				additionalneeds = "Breakfast"
+			});
+			request.AddHeader("Content-Type", "application/json");
+			request.AddHeader("Accept", "application/json");
+		}
+		[When(@"I send a POST request to ""([^""]*)""")]
+		public void WhenISendAPOSTRequestTo(string endpoint)
+		{
+			response = client.Execute(request);
+			Assert.AreEqual(200, (int)response.StatusCode);
+		}
+		[Then(@"the response status should be (.*)")]
+		public void ThenTheResponseStatusShouldBe(int expectedStatus)
+		{
+			Assert.AreEqual(expectedStatus, (int)response.StatusCode);
+		}
+		[Then(@"the response should contain the booking ID")]
+		public void ThenTheResponseShouldContainTheBookingID()
+		{
+			Assert.IsNotNull(bookingId, "Booking ID is null");
+		}
+		[Given(@"I have a booking ID")]
+		public void GivenIHaveABookingID()
+		{
+			Assert.IsTrue(getBookingId > 0, "Booking ID for GET is not valid");	
+		}
+		[When(@"I send a GET request to ""([^""]*)""")]
+		public void WhenISendAGETRequestTo(string endpoint)
+		{
+			request = new RestRequest(endpoint.Replace("{id}", getBookingId.ToString()), Method.GET);
+			request.AddHeader("Content-Type", "application/json");
+			request.AddHeader("Accept", "application/json");
+			response = client.Execute(request);
+		}
+		[Then(@"the response should contain booking details")]
+		public void ThenTheResponseShouldContainBookingDetails()
+		{
+			Assert.AreEqual(200, (int)response.StatusCode);
+		}
+		[Given(@"I have a valid updated booking payload")]
+		public void GivenIHaveAValidUpdatedBookingPayload()
+		{
+			request = new RestRequest($"/booking/{updateBookingId}", Method.PUT);
+			request.AddJsonBody(new
+			{
+				firstname = "Jane",
+				lastname = "Smith",
+				totalprice = 150,
+				depositpaid = false,
+				bookingdates = new
+				{
+					checkin = "2023-02-01",
+					checkout = "2023-02-05"
+				},
+				additionalneeds = "Dinner"
+			});
+			request.AddHeader("Content-Type", "application/json");
+			request.AddHeader("Accept", "application/json");
+		}
+		[Given(@"I am authorized")]
+		public void GivenIAmAuthorized()
+		{
+			var authRequest = new RestRequest("/auth", Method.POST);
+			authRequest.AddJsonBody(new
+			{
+				username = "admin",
+				password = "password123"
+			});
+			authRequest.AddHeader("Content-Type", "application/json");
+			var authResponse = client.Execute(authRequest);
+			Assert.AreEqual(200, (int)authResponse.StatusCode, "Authorization failed");
+			dynamic responseBody = JsonConvert.DeserializeObject(authResponse.Content);
+			authToken = responseBody.token;
+			Assert.IsNotNull(authToken, "Authorization token is null");
+		}
+		[When(@"I send a PUT request to ""([^""]*)""")]
+		public void WhenISendAPUTRequestTo(string endpoint)
+		{
+			request.AddHeader("Cookie", $"token={authToken}");
+			response = client.Execute(request);
+		}
+		[Then(@"the response should contain updated booking details")]
+		public void ThenTheResponseShouldContainUpdatedBookingDetails()
+		{
+			dynamic responseBody = JsonConvert.DeserializeObject(response.Content);
+			Assert.AreEqual("Jane", (string)responseBody.firstname);
+			Assert.AreEqual("Smith", (string)responseBody.lastname);
+		}
+		[When(@"I send a DELETE request to ""([^""]*)""")]
+		public void WhenISendADELETERequestTo(string endpoint)
+		{
+			request = new RestRequest(endpoint.Replace("{id}", deleteBookingId.ToString()), Method.DELETE);
+			request.AddHeader("Cookie", $"token={authToken}");
+			response = client.Execute(request);
+		}
+		[Then(@"the booking should no longer exist")]
+		public void ThenTheBookingShouldNoLongerExist()
+		{
+			request = new RestRequest($"/booking/{deleteBookingId}", Method.GET);
+			response = client.Execute(request);
+			Assert.AreEqual(404, (int)response.StatusCode, "Booking still exists");
+		}
+	}
+}
+
+3)	Покрокове тестування операції get для отримання якогось котика :
+using System;
+using TechTalk.SpecFlow;
+using RestSharp;
+using Newtonsoft.Json.Linq;
+using System.Linq;
+
+namespace testApi.StepDefinitions
+{
+	[Binding]
+	public class CataasApiSteps
+	{
+		private readonly RestClient _client;
+		private IRestResponse _response;
+		private string apiUrl = "https://cataas.com/";
+		public CataasApiSteps()
+		{
+			_client = new RestClient(apiUrl);
+		}
+		[Given(@"I have access to the Cataas API at ""(.*)""")]
+		public void GivenIHaveAccessToTheCataasAPI(string apiUrl)
+		{
+			_client.BaseUrl = new Uri(apiUrl);
+		}
+		[When(@"I request a random cat image")]
+		public void WhenIRequestARandomCatImage()
+		{
+			var request = new RestRequest("/cat", Method.GET);
+			_response = _client.Execute(request);
+			request.AddHeader("Content-Type", "application/json");
+			request.AddHeader("Accept", "application/json");
+		}
+		[Then(@"the response should be successful")]
+		public void ThenTheResponseShouldBeSuccessful()
+		{
+			Assert.AreEqual(200, (int)_response.StatusCode);
+		}
+	}
+}
+
